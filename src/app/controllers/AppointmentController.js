@@ -6,6 +6,17 @@ import File from '../models/File';
 
 class AppointmentController {
   async index(req, res) {
+    const checkUserProvider = await User.findOne({
+      where: {
+        id: req.userId,
+        provider: true,
+      },
+    });
+
+    if (checkUserProvider) {
+      return res.status(401).json({ error: 'User cannot be a provider' });
+    }
+
     const { page = 1, limit = 20 } = req.query;
 
     const appointments = await Appointment.findAll({
@@ -33,7 +44,7 @@ class AppointmentController {
       ],
     });
 
-    res.json(appointments);
+    return res.json(appointments);
   }
 
   async store(req, res) {
