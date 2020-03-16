@@ -6,6 +6,9 @@ import Appointment from '../models/Appointment';
 import File from '../models/File';
 import Notification from '../schemas/Notification';
 
+import CancellationMail from '../jobs/CancellationMail';
+import Queue from '../../lib/Queue';
+
 class AppointmentController {
   async index(req, res) {
     const checkIsProvider = await User.findOne({
@@ -123,7 +126,20 @@ class AppointmentController {
   }
 
   async delete(req, res) {
-    const appointment = await Appointment.findByPk(req.params.id);
+    const appointment = await Appointment.findByPk(req.params.id, {
+      include: [
+        {
+          model: User,
+          as: 'provider',
+          attributes: ['name', 'email'],
+        },
+        {
+          model: User,
+          as: 'user',
+          attributes: ['name', 'email'],
+        },
+      ],
+    });
 
     if (!appointment) {
       return res.status(400).json({ error: 'Appointment does not exist' });
@@ -144,6 +160,8 @@ class AppointmentController {
     if (!appointment.canceled_at) {
       appointment.canceled_at = new Date();
       await appointment.save();
+
+      await Queue.add(CancellationMail.key, { appointment });
     }
 
     return res.json(appointment);
